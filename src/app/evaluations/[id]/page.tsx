@@ -1,30 +1,65 @@
-import { createServerClient } from '@/lib/supabase'
+'use client'
+
+import { createClient, Database } from '@/lib/supabase'
 import { formatLatency, maskPII } from '@/lib/utils'
 import { format } from 'date-fns'
 import { Badge } from '@/components/Badge'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
-export default async function EvaluationDetailPage({
+type Evaluation = Database['public']['Tables']['evaluations']['Row']
+type UserConfig = Database['public']['Tables']['user_configs']['Row']
+
+export default function EvaluationDetailPage({
   params,
 }: {
   params: { id: string }
 }) {
-  const supabase = createServerClient()
-  
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const supabase = createClient()
+  const [evaluation, setEvaluation] = useState<Evaluation | null>(null)
+  const [config, setConfig] = useState<UserConfig | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  if (!session) return null
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) return
 
-  // Get evaluation details
-  const { data: evaluation } = await supabase
-    .from('evaluations')
-    .select('*')
-    .eq('id', params.id)
-    .eq('user_id', session.user.id)
-    .single()
+      // Get evaluation details
+      const { data: evalData } = await supabase
+        .from('evaluations')
+        .select('*')
+        .eq('id', params.id)
+        .eq('user_id', session.user.id)
+        .single()
+
+      // Get user config for PII settings
+      const { data: configData } = await supabase
+        .from('user_configs')
+        .select('obfuscate_pii')
+        .eq('user_id', session.user.id)
+        .single()
+
+      setEvaluation(evalData)
+      setConfig(configData)
+      setLoading(false)
+    }
+
+    fetchData()
+  }, [supabase, params.id])
+
+  if (loading) {
+    return (
+      <div className="px-4 py-6 sm:px-0">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    )
+  }
 
   if (!evaluation) {
     return (
@@ -38,13 +73,6 @@ export default async function EvaluationDetailPage({
       </div>
     )
   }
-
-  // Get user config for PII settings
-  const { data: config } = await supabase
-    .from('user_configs')
-    .select('obfuscate_pii')
-    .eq('user_id', session.user.id)
-    .single()
 
   const shouldObfuscate = config?.obfuscate_pii || false
 
@@ -131,7 +159,7 @@ export default async function EvaluationDetailPage({
             <div className="bg-white shadow rounded-lg p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">Flags</h2>
               <div className="space-y-2">
-                {evaluation.flags.map((flag, index) => (
+                {evaluation.flags.map((flag: string, index: number) => (
                   <Badge key={index} variant="danger">
                     {flag}
                   </Badge>

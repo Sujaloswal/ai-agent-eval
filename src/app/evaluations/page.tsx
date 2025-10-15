@@ -1,42 +1,64 @@
-import { createServerClient } from '@/lib/supabase'
+'use client'
+
+import { createClient, Database } from '@/lib/supabase'
 import { formatLatency, maskPII } from '@/lib/utils'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { Badge } from '@/components/Badge'
+import { useEffect, useState } from 'react'
 
-export default async function EvaluationsPage({
-  searchParams,
-}: {
-  searchParams: { page?: string }
-}) {
-  const supabase = createServerClient()
-  
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+type Evaluation = Database['public']['Tables']['evaluations']['Row']
+type UserConfig = Database['public']['Tables']['user_configs']['Row']
 
-  if (!session) return null
+export default function EvaluationsPage() {
+  const supabase = createClient()
+  const [evaluations, setEvaluations] = useState<Evaluation[]>([])
+  const [config, setConfig] = useState<UserConfig | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const page = parseInt(searchParams.page || '1')
-  const pageSize = 20
-  const offset = (page - 1) * pageSize
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) return
 
-  // Get evaluations with pagination
-  const { data: evaluations, count } = await supabase
-    .from('evaluations')
-    .select('*', { count: 'exact' })
-    .eq('user_id', session.user.id)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + pageSize - 1)
+      // Get evaluations
+      const { data: evalData } = await supabase
+        .from('evaluations')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
 
-  // Get user config for PII settings
-  const { data: config } = await supabase
-    .from('user_configs')
-    .select('obfuscate_pii')
-    .eq('user_id', session.user.id)
-    .single()
+      // Get user config for PII settings
+      const { data: configData } = await supabase
+        .from('user_configs')
+        .select('obfuscate_pii')
+        .eq('user_id', session.user.id)
+        .single()
 
-  const totalPages = Math.ceil((count || 0) / pageSize)
+      setEvaluations(evalData || [])
+      setConfig(configData)
+      setLoading(false)
+    }
+
+    fetchData()
+  }, [supabase])
+
+  if (loading) {
+    return (
+      <div className="px-4 py-6 sm:px-0">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-24 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="px-4 py-6 sm:px-0">
@@ -50,7 +72,7 @@ export default async function EvaluationsPage({
       {/* Evaluations List */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {evaluations?.map((evaluation) => (
+          {evaluations.map((evaluation) => (
             <li key={evaluation.id}>
               <Link
                 href={`/evaluations/${evaluation.id}`}
@@ -98,58 +120,6 @@ export default async function EvaluationsPage({
           ))}
         </ul>
       </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-between">
-          <div className="flex-1 flex justify-between sm:hidden">
-            {page > 1 && (
-              <Link
-                href={`/evaluations?page=${page - 1}`}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Previous
-              </Link>
-            )}
-            {page < totalPages && (
-              <Link
-                href={`/evaluations?page=${page + 1}`}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Next
-              </Link>
-            )}
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing <span className="font-medium">{offset + 1}</span> to{' '}
-                <span className="font-medium">
-                  {Math.min(offset + pageSize, count || 0)}
-                </span>{' '}
-                of <span className="font-medium">{count}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                  <Link
-                    key={pageNum}
-                    href={`/evaluations?page=${pageNum}`}
-                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                      pageNum === page
-                        ? 'z-10 bg-primary-50 border-primary-500 text-primary-600'
-                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
