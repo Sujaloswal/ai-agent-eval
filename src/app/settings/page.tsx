@@ -34,7 +34,7 @@ export default function SettingsPage() {
             sample_rate_pct: 100,
             obfuscate_pii: true,
             max_eval_per_day: 1000,
-          })
+          } as any)
           .select()
           .single()
         

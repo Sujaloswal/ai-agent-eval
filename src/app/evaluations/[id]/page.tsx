@@ -24,7 +24,7 @@ export default function EvaluationDetailPage({
   useEffect(() => {
     const fetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      
+
       if (!session) return
 
       // Get evaluation details

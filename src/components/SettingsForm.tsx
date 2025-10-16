@@ -30,7 +30,7 @@ export default function SettingsForm({ config }: SettingsFormProps) {
         setMessage('')
 
         try {
-            const updateData: Database['public']['Tables']['user_configs']['Update'] = {
+            const updateData = {
                 run_policy: formData.run_policy,
                 sample_rate_pct: formData.sample_rate_pct,
                 obfuscate_pii: formData.obfuscate_pii,
@@ -38,7 +38,7 @@ export default function SettingsForm({ config }: SettingsFormProps) {
                 updated_at: new Date().toISOString(),
             }
 
-            const { error } = await supabase
+            const { error } = await (supabase as any)
                 .from('user_configs')
                 .update(updateData)
                 .eq('id', config.id)
