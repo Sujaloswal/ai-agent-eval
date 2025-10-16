@@ -70,17 +70,15 @@ npm install
 
 ### 2. Environment Setup
 
+Create a local env file (do not commit real secrets):
+
 ```bash
-cp .env.example .env.local
+echo NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co > .env.local
+echo NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here >> .env.local
+echo SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here >> .env.local
 ```
 
-Update `.env.local` with your Supabase credentials:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
-```
+Note: Keep `.env.local` out of version control. Use Vercel Project Environment Variables for production.
 
 ### 3. Database Setup
 
@@ -569,5 +567,6 @@ For questions or issues:
 
 ---
 
-**Built with ❤️ for AI agent evaluation and monitoring**#   a i - a g e n t - e v a l  
+**Built with ❤️ for AI agent evaluation and monitoring**#   a i - a g e n t - e v a l 
+ 
  
